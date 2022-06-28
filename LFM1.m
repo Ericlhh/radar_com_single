@@ -3,7 +3,7 @@
 clear,clc,close all
 set(0,'defaultfigurecolor','w')
 %% Chirp信号参数设置
-lhh=10000;
+lhh=100000;
 Tr = 1e-6;%时宽
 Br = 200e6;%带宽
 Fs = 4*Br;%采样率
