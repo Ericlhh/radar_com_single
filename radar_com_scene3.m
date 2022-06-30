@@ -94,7 +94,6 @@ for i=1:N_mc
 end               
 figure;
 plot(t*c/2,abs(sr_yasuo(1,:)))   
-=======
 rece_signal_down=receive_signal.*(cos(2*pi*fc*t));
 figure;
 plot(abs(fft(rece_signal_down)));
