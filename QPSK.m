@@ -36,7 +36,7 @@ plot(t,Q_carrier);legend('Q signal')%Q路信号
 subplot(3,1,3)
 plot(t,QPSK_signal);legend('QPSK signal')%I路、Q路和的信号
 
-snr=40;%信躁比
+snr=0;%信躁比
 %接收信号
 QPSK_receive=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
 %解调
@@ -64,8 +64,13 @@ end
 % err_ber=err/(2*N);
 figure;
 plot(abs(fft(II_output)));
+<<<<<<< HEAD
 II_fliter=lowpass(II_output,0.85*Bc,fs);
 QQ_fliter=lowpass(QQ_output,0.85*Bc,fs);
+=======
+II_fliter=lowpass(II_output,Bc,fs);
+QQ_fliter=lowpass(QQ_output,Bc,fs);
+>>>>>>> cb96433325c15d808a6e0e9b471bc8db2345bdf1
 figure;
 plot(abs(fft(II_fliter)));
 figure;
