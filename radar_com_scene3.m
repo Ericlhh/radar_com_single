@@ -56,7 +56,6 @@ for i=1:N
 end
 %传输信号
 QPSK_signal=real(carrier);
-<<<<<<< HEAD
 receive_signal=QPSK_signal+sr;
 %% 未处理信号脉冲压缩
 st=rectpuls(t-Tp/2,Tp).*exp(1i*pi*2*Kr*(t-Tp/2).^2);%参考信号 时域 也就是匹配滤波器的时域
@@ -67,10 +66,8 @@ end
 figure;
 plot(t*c/2,abs(sr_before_yasuo(1,:)))   
 %% 联合雷达信号通信信号处理
-=======
 %% 联合雷达信号通信信号处理
 receive_signal=QPSK_signal+sr;
->>>>>>> cb96433325c15d808a6e0e9b471bc8db2345bdf1
 figure;
 plot(abs(fft(sr)));
 figure;
