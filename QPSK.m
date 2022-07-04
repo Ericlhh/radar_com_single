@@ -2,7 +2,7 @@ clear all;close all;
 fc=2.06e9;                 %载波频率   太关键了，要保证低采样时，载波频率与采样频率之间不存在倍数关系，否则会出大问题
 Br=5e6;                 %雷达带宽
 fs=10*Br;               %采样频率,满足带通采样定理
-Tc=1e-7;                %码元周期
+Tc=5*1/fs;                %码元周期
 Bc=1/Tc;
 Tp=5e-6;                %雷达脉宽
 t=0:1/fs:15*Tp+Tp-1/fs;      %采样时间
@@ -22,8 +22,8 @@ end
 I_carrier=[];Q_carrier=[];
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 for i=1:N
-    I_carrier=[I_carrier,I(i)*cos(2*pi*fc*(bit_t+(N-1)*Tc))];%I路载波信号
-    Q_carrier=[Q_carrier,Q(i)*cos(2*pi*fc*(bit_t+(N-1)*Tc)+pi/2)];%Q路载波信号
+    I_carrier=[I_carrier,I(i)*cos(2*pi*fc*(bit_t+(i-1)*Tc))];%I路载波信号
+    Q_carrier=[Q_carrier,Q(i)*cos(2*pi*fc*(bit_t+(i-1)*Tc)+pi/2)];%Q路载波信号
 end
 %传输信号
 QPSK_signal=I_carrier+Q_carrier;%复数只需要给后面加个j即可
@@ -57,20 +57,19 @@ QPSK_receive=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
 II_output=[];
 QQ_output=[];
 for i=1:N
-    II_output=[II_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(N-1)*Tc))];
-    QQ_output=[QQ_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(N-1)*Tc)+ pi/2)];
+    II_output=[II_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(i-1)*Tc))];
+    QQ_output=[QQ_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(i-1)*Tc)+ pi/2)];
 end
 % err=sum(abs(I-I_recover))/2+sum(abs(Q-Q_recover))/2;
 % err_ber=err/(2*N);
 figure;
+plot(abs(fft(QPSK_signal)))
+figure;
 plot(abs(fft(II_output)));
-<<<<<<< HEAD
-II_fliter=lowpass(II_output,0.85*Bc,fs);
-QQ_fliter=lowpass(QQ_output,0.85*Bc,fs);
-=======
 II_fliter=lowpass(II_output,Bc,fs);
 QQ_fliter=lowpass(QQ_output,Bc,fs);
->>>>>>> cb96433325c15d808a6e0e9b471bc8db2345bdf1
+II_fliter=lowpass(II_output,Bc,fs);
+QQ_fliter=lowpass(QQ_output,Bc,fs);
 figure;
 plot(abs(fft(II_fliter)));
 figure;

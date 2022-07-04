@@ -1,5 +1,6 @@
+%radar_com_scene4
 %LFM测速测距代码
-clear all;close all;
+clear all;close all;  
 fc=2.06e9;                 %载波频率    
 Br=5e6;                 %带宽
 fs=10*Br;               %采样频率
@@ -15,7 +16,7 @@ N_r=length(t);          %采样点数
 N_target=5;             %目标个数
 Rmax=c/2*15*Tp;                             %目标最大距离（本来应该是1/2*c*Tr，但是采样时间限制了不可能那么大）
 R_t=Rmax*abs(rand(1,N_target));             %目标的距离（这样以来目标的距离一定是小于最大距离的）
-RCS_t=ones(1,N_target);    %目标RCS，幅度为10，相位在（0,2pi）之间随机分布
+RCS_t=1*(exp(i*2*pi*rand(1,N_target))); ;    %目标RCS，幅度为1，相位在（0,2pi）之间随机分布
 Vmax=lamda*PRF/2;                           %目标最大速度，最大测速范围满足在第一盲速之内
 v=Vmax*((1+rand(1,N_target))/2);            %目标速度（这样以来目标的速度一定是小于第一盲速的），每一个目标都有一个自己的速度，对应一个矩阵
 %% 生成目标矩阵
@@ -26,7 +27,7 @@ for i=1:N_mc
     %%内层for循环，一个目标一个目标来研究，对应每一个回波脉冲是由每一个目标回波之和组成
     for k=1:N_target
         tao=2*(R_t(k)-v(k).*(ta))/c;
-        srj=RCS_t(k).*rectpuls(t-tao-Tp/2,Tp).*cos(2*pi*fc*(t-tao)+pi*Kr.*(t-tao-Tp/2).^2);
+        srj=RCS_t(k).*rectpuls(t-tao-Tp/2,Tp).*exp(-1j*2*pi*fc*tao+1j*pi*Kr.*(t-tao-Tp/2).^2);
         sri=sri+srj;
     end
     %%外层for循环，不同的脉冲，对应的ta是不同值，再代入来计算回波
@@ -35,7 +36,7 @@ end
 
                     
 %% 通信信号 采用QPSK调制
-Tc=1e-7;                %码元周期
+Tc=2*1/fs;                %码元周期
 Bc=1/Tc;
 N=16*fix(Tp/Tc);
 bitstream=randi([0,1],1,2*N);%随机产生的比特数0、1
@@ -51,28 +52,48 @@ for i=1:2*N
 end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
+com_power=0.5;%通信功率
 for i=1:N
-    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(N-1)*Tc))];%Q路载波信号
+    carrier=[carrier,sqrt(1/2)*com_power*(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
 %传输信号
-QPSK_signal=real(carrier);
-%% 联合雷达信号通信信号处理
-receive_signal=QPSK_signal+sr;
+QPSK_signal=carrier.*exp(-j*2*pi*fc*t);
+snr=6;
+QPSK_receive=QPSK_signal;
+% QPSK_receive=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
+receive_signal=QPSK_receive+sr;
+%% 未处理信号脉冲压缩
+st=rectpuls(t-Tp/2,Tp).*exp(1i*pi*Kr*(t-Tp/2).^2);%参考信号 时域 也就是匹配滤波器的时域
+stf=conj(fft(st));%匹配滤波器的频域特性
+for i=1:N_mc
+    signal_yasuo(i,:)=ifft(fft(receive_signal(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩          
+end               
 figure;
-plot(abs(fft(sr)));
-figure;
-plot(abs(fft(receive_signal)));
+plot(t*c/2,abs(signal_yasuo(1,:)))    
 figure;
 plot(abs(fft(QPSK_signal)));
-rece_I_down=receive_signal.*(cos(2*pi*fc*t));
+I_recover=[];
+Q_recover=[];
+%% 简单信号处理
+for i=1:N
+    if real(receive_signal(2*i))>0 %积分器求和，大于0为1，否则为-1
+        I_recover=[I_recover,1,1];
+    else
+        I_recover=[I_recover,-1,-1];
+    end
+    if imag(receive_signal(2*i))>0 %积分器求和，大于0为1，否则为-1
+        Q_recover=[Q_recover,1,1];
+    else
+        Q_recover=[Q_recover,-1,-1];
+    end
+end
+signal_com_recover=com_power*sqrt(1/2)*(I_recover+j*Q_recover);
+radar=receive_signal-signal_com_recover;
+for i=1:N_mc
+    radar_yasuo(i,:)=ifft(fft(radar(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩          
+end      
 figure;
-plot(abs(fft(rece_I_down)));
-rece_fliterI_signal=lowpass(rece_I_down,Bc,fs);
-rece_fliterI_signal=2*rece_fliterI_signal;
-rece_Q_down=receive_signal.*(cos(2*pi*fc*t+pi/2));
-figure;
-plot(abs(fft(rece_Q_down)));
-rece_fliterQ_signal=lowpass(rece_Q_down,Bc,fs);
-rece_fliterQ_signal=2*rece_fliterQ_signal;
-rece_signal_sum=rece_fliterI_signal.^2+rece_fliterQ_signal.^2-3;
-rece_signal_sum=rece_signal_sum.^2
+plot(t*c/2,abs(radar_yasuo(1,:))); 
+err=((QPSK_signal-signal_com_recover)/(com_power*sqrt(1/2)))/2;
+err_num=fix(sum(abs(real(err))+abs(imag(err)))/2);
+ber=err_num/(2*N);

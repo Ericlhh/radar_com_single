@@ -52,7 +52,7 @@ end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
 for i=1:N
-    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(N-1)*Tc))];%Q路载波信号
+    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
 %传输信号
 QPSK_signal=real(carrier);
@@ -65,7 +65,7 @@ for i=1:N_mc
 end  
 figure;
 plot(t*c/2,abs(sr_before_yasuo(1,:)))   
-%% 联合雷达信号通信信号处理
+
 %% 联合雷达信号通信信号处理
 receive_signal=QPSK_signal+sr;
 figure;
