@@ -14,6 +14,7 @@ Tr=1/PRF;
 t=0:1/fs:15*Tp+Tp-1/fs;      %采样时间
 N_r=length(t);          %采样点数
 N_target=1;             %目标个数
+
 Rmax=c/2*15*Tp;                             %目标最大距离（本来应该是1/2*c*Tr，但是采样时间限制了不可能那么大）
 % R_t=Rmax*abs(rand(1,N_target));             %目标的距离（这样以来目标的距离一定是小于最大距离的）
 R_t=1/2*Rmax;      %固定目标距离
@@ -59,8 +60,8 @@ for i=1:N
 end
 %传输信号
 QPSK_signal=carrier.*exp(-j*2*pi*fc*t);
-snr=50;
-P_noise=10^(-snr/10);
+sinr=10;%我们考虑雷达信号和通信信号功率
+P_noise=1/2*10^(-sinr/10);
 sinr=10*log10(1/(1+P_noise));
 % QPSK_receive=QPSK_signal;
 QPSK_receive=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
