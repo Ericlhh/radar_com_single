@@ -16,6 +16,10 @@ grid on;axis tight;
 subplot(212)
 freq=linspace(-Fs/2,Fs/2,N);
 plot(freq*1e-6,fftshift(abs(fft(St))));
+figure;
+plot(freq*1e-6,fftshift(abs(fft(real(St)))));
+figure;
+plot(freq*1e-6,fftshift(abs(fft(imag(St)))));
 xlabel('频率/MHz');
 title('线性调频信号的幅频特性');
 grid on;axis tight;

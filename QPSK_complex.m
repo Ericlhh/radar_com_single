@@ -22,7 +22,7 @@ end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
 for i=1:N
-    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(N-1)*Tc))];%Q路载波信号
+    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
 %传输信号
 QPSK_signal=carrier;%复数只需要给后面加个j即可
@@ -35,7 +35,7 @@ QPSK_signal=carrier;%复数只需要给后面加个j即可
 % subplot(3,1,3)
 % plot(t,QPSK_signal);legend('QPSK signal')%I路、Q路和的信号
 
-snr=0;%信躁比
+snr=10;%信躁比
 %接收信号
 QPSK_receive_complex=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
 %解调
@@ -57,8 +57,8 @@ QPSK_receive=real(QPSK_receive_complex);
 II_output=[];
 QQ_output=[];
 for i=1:N
-    II_output=[II_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(N-1)*Tc))];
-    QQ_output=[QQ_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(N-1)*Tc)+ pi/2)];
+    II_output=[II_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(i-1)*Tc))];
+    QQ_output=[QQ_output,QPSK_receive(1,(i-1)*length(bit_t)+1:i*length(bit_t)).*cos(2*pi*fc*(bit_t+(i-1)*Tc)+ pi/2)];
 end
 % err=sum(abs(I-I_recover))/2+sum(abs(Q-Q_recover))/2;
 % err_ber=err/(2*N);

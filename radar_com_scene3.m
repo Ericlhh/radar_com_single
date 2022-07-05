@@ -52,10 +52,20 @@ end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
 for i=1:N
-    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(N-1)*Tc))];%Q路载波信号
+    carrier=[carrier,(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
 %传输信号
 QPSK_signal=real(carrier);
+receive_signal=QPSK_signal+sr;
+%% 未处理信号脉冲压缩
+st=rectpuls(t-Tp/2,Tp).*exp(1i*pi*2*Kr*(t-Tp/2).^2);%参考信号 时域 也就是匹配滤波器的时域
+stf=conj(fft(st));%匹配滤波器的频域特性
+for i=1:N_mc
+    sr_before_yasuo(i,:)=ifft(fft(receive_signal(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩          
+end  
+figure;
+plot(t*c/2,abs(sr_before_yasuo(1,:)))   
+
 %% 联合雷达信号通信信号处理
 receive_signal=QPSK_signal+sr;
 figure;
@@ -64,7 +74,28 @@ figure;
 plot(abs(fft(receive_signal)));
 figure;
 plot(abs(fft(QPSK_signal)));
+
+rece_I_down=receive_signal.*(cos(2*pi*fc*t));
+figure;
+plot(abs(fft(rece_I_down)));
+rece_fliterI_signal=lowpass(rece_I_down,0.85*Bc,fs);
+rece_fliterI_signal=2*rece_fliterI_signal;
+rece_Q_down=receive_signal.*(cos(2*pi*fc*t+pi/2));
+figure;
+plot(abs(fft(rece_Q_down)));
+rece_fliterQ_signal=lowpass(rece_Q_down,0.85*Bc,fs);
+rece_fliterQ_signal=2*rece_fliterQ_signal;
+rece_signal_sum=rece_fliterI_signal.^2+rece_fliterQ_signal.^2-3;
+rece_signal_sum=abs(rece_signal_sum.^2-4);
+%% 脉冲压缩
+
+for i=1:N_mc
+    sr_yasuo(i,:)=ifft(fft(rece_signal_sum(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩          
+end               
+figure;
+plot(t*c/2,abs(sr_yasuo(1,:)))   
 rece_signal_down=receive_signal.*(cos(2*pi*fc*t));
 figure;
 plot(abs(fft(rece_signal_down)));
 rece_fliter_signal=lowpass(rece_signal_down,Bc,fs);
+
