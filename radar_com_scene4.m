@@ -54,7 +54,7 @@ for i=1:2*N
 end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
-com_power=5;%通信功率
+com_power=1;%通信功率
 for i=1:N
     carrier=[carrier,sqrt(1/2)*com_power*(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
@@ -152,3 +152,13 @@ if(com_power>radar_reflect) %%如果通信信号功率较强
     figure;
     plot(t*c/2,abs(radar_yasuo(1,:)));
 end
+%% 仅雷达信号的脉冲压缩图
+snr_radar=10*log10(radar_reflect/(P_noise));
+radar_noise=awgn(sr,snr_radar,'measured');%awgn()添加噪声
+for i=1:N_mc
+        radar_only_yasuo(i,:)=ifft(fft(radar_noise(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩
+end
+figure;
+plot(t*c/2,abs(radar_only_yasuo(1,:)));
+title("pulse compression(only radar signal)");
+xlabel("distance(m)");
