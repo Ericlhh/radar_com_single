@@ -20,6 +20,7 @@ R_t=1/2*Rmax;      %固定目标距离
 RCS_t=1*(exp(i*2*pi*rand(1,N_target)));    %目标RCS，幅度为1，相位在（0,2pi）之间随机分布
 Vmax=lamda*PRF/2;                           %目标最大速度，最大测速范围满足在第一盲速之内
 v=Vmax*((1+rand(1,N_target))/2);            %目标速度（这样以来目标的速度一定是小于第一盲速的），每一个目标都有一个自己的速度，对应一个矩阵
+radar_power=1;
 %% 生成目标矩阵
 sr=zeros(N_mc,N_r); %N_mc 脉冲个数   N_r 采样点数
 for i=1:N_mc
@@ -53,15 +54,15 @@ for i=1:2*N
 end
 bit_t=0:1/fs:Tc-1/fs;%定义一个码元的时间轴
 carrier=[];
-com_power=1;%通信功率
+com_power=5;%通信功率
 for i=1:N
     carrier=[carrier,sqrt(1/2)*com_power*(I(i)+j*Q(i))*exp(j*2*pi*fc*(bit_t+(i-1)*Tc))];%Q路载波信号
 end
 %传输信号
 QPSK_signal=carrier.*exp(-j*2*pi*fc*t);
-snr=50;
-P_noise=10^(-snr/10);
-sinr=10*log10(1/(1+P_noise));
+snr=7;
+P_noise=10^(-snr/10)*com_power;
+sinr=10*log10(com_power/(1+P_noise));
 % QPSK_receive=QPSK_signal;
 QPSK_receive=awgn(QPSK_signal,snr,'measured');%awgn()添加噪声
 receive_signal=QPSK_receive+sr;
@@ -75,19 +76,27 @@ figure;
 plot(t*c/2,abs(signal_yasuo(1,:)))    
 figure;
 plot(abs(fft(QPSK_signal)));
-I_recover=[];
-Q_recover=[];
-%% 简单信号处理
-for i=1:N
+radar_reflect=radar_power*abs(RCS_t);
+if(com_power>radar_reflect) %%如果通信信号功率较强
+    I_recover=[];
+    II_recover=[]
+    Q_recover=[];
+    QQ_recover=[];
+    %% 简单信号处理
+    for i=1:N
         if real(receive_signal(2*i)+receive_signal(2*i-1))>0 %积分器求和，大于0为1，否则为-1
             I_recover=[I_recover,1];
+            II_recover=[II_recover,1,1];
         else
             I_recover=[I_recover,-1];
+            II_recover=[II_recover,-1,-1];
         end
         if imag(receive_signal(2*i)+receive_signal(2*i-1))>0 %积分器求和，大于0为1，否则为-1
             Q_recover=[Q_recover,1];
+            QQ_recover=[QQ_recover,1,1];
         else
             Q_recover=[Q_recover,-1];
+            QQ_recover=[QQ_recover,-1,-1];
         end
     end
     recover_signal=I_recover+j*Q_recover;
@@ -95,11 +104,51 @@ for i=1:N
     err_all=sum(abs(I_recover-I)/2+abs(Q_recover-Q)/2);
     err_radar=sum(abs(I_recover(1,938:1062)-I(1,938:1062))/2+abs(Q_recover(1,938:1062)-Q(1,938:1062))/2);
     ber=err_radar/(250);
-%雷达信号影响的信号区域在【1876-2125】
-% signal_com_recover=com_power*sqrt(1/2)*(I_recover+j*Q_recover);
-% radar=receive_signal-signal_com_recover;
-% for i=1:N_mc
-%     radar_yasuo(i,:)=ifft(fft(radar(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩          
-% end      
-% figure;
-% plot(t*c/2,abs(radar_yasuo(1,:))); 
+    %雷达信号影响的信号区域在【1876-2125】
+    receive_angle=angle(receive_signal);
+    a=abs(receive_signal).*(cos(pi/4-receive_angle));
+    b=abs(receive_signal).*(sin(pi/4-receive_angle));
+    
+    signal_com_recover=com_power*sqrt(1/2)*(II_recover+j*QQ_recover);
+    radar=receive_signal-signal_com_recover;
+    for i=1:N_mc
+        radar_yasuo(i,:)=ifft(fft(radar(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩
+    end
+    figure;
+    plot(t*c/2,abs(radar_yasuo(1,:)));
+    else
+    %% 当雷达信号功率比较大的时候，先去剪掉雷达信号，这里已经知道了目标的距离
+    radar_decect=RCS_t(1).*rectpuls(t-tao-Tp/2,Tp).*exp(-1j*2*pi*fc*tao+1j*pi*Kr.*(t-tao-Tp/2).^2);
+    signal_eli_radar=receive_signal-radar_decect;
+    I_eli_recover=[];
+    II_eli_recover=[];
+    Q_eli_recover=[];
+    QQ_eli_recover=[];
+    for i=1:N
+        if real(signal_eli_radar(2*i)+signal_eli_radar(2*i-1))>0 %积分器求和，大于0为1，否则为-1
+            I_eli_recover=[I_eli_recover,1];
+            II_eli_recover=[II_eli_recover,1,1];
+        else
+            I_eli_recover=[I_eli_recover,-1];
+            II_eli_recover=[II_eli_recover,-1,-1];
+        end
+        if imag(signal_eli_radar(2*i)+signal_eli_radar(2*i-1))>0 %积分器求和，大于0为1，否则为-1
+            Q_eli_recover=[Q_eli_recover,1];
+            QQ_eli_recover=[QQ_eli_recover,1,1];
+        else
+            Q_eli_recover=[Q_eli_recover,-1];
+            QQ_eli_recover=[QQ_eli_recover,-1,-1];
+        end
+    end
+    recover_eli_signal=I_eli_recover+j*Q_eli_recover;
+    err_all=sum(abs(I_eli_recover-I)/2+abs(Q_eli_recover-Q)/2);
+    err_radar=sum(abs(I_eli_recover(1,938:1062)-I(1,938:1062))/2+abs(Q_eli_recover(1,938:1062)-Q(1,938:1062))/2);
+    ber=err_radar/(250);
+    signal_com_recover=com_power*sqrt(1/2)*(II_eli_recover+j*QQ_eli_recover);
+    radar=receive_signal-signal_com_recover;
+    for i=1:N_mc
+        radar_yasuo(i,:)=ifft(fft(radar(i,:)).*stf);  %分别对每一行脉冲压缩 频域脉冲压缩
+    end
+    figure;
+    plot(t*c/2,abs(radar_yasuo(1,:)));
+end
